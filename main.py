@@ -12,7 +12,7 @@ SPOONACULAR_API_KEY = "97bdb917db30460c98e81c109023a009"
 bot = telebot.TeleBot(TOKEN)
 database = Database()
 
-# Словарь для перевода популярных блюд (^.^)
+# Словарь для перевода популярных блюд (:))
 RU_TO_EN_DISHES = {
     "паста карбонара": "pasta carbonara",
     "борщ": "borscht",
