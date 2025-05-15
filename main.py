@@ -207,11 +207,6 @@ def show_favorites_page(chat_id, user_id, page=0):
     )
 
 
-
-
-
-
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('fav_prev_', 'fav_next_')))
 def handle_favorites_pagination(call):
     action, page = call.data.split('_')[1], int(call.data.split('_')[2])
@@ -298,11 +293,6 @@ def get_next_part(call):
     except Exception as e:
         print(f"Error in get_next_part: {e}")
         bot.answer_callback_query(call.id, "Произошла ошибка при обработке запроса")
-
-
-
-
-
 
 
 # Поиск рецепта
