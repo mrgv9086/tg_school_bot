@@ -12,7 +12,7 @@ SPOONACULAR_API_KEY = "97bdb917db30460c98e81c109023a009"
 bot = telebot.TeleBot(TOKEN)
 database = Database()
 
-# Словарь для перевода популярных блюд (:))
+# Словарь для перевода популярных блюд (^.^)
 RU_TO_EN_DISHES = {
     "паста карбонара": "pasta carbonara",
     "борщ": "borscht",
@@ -68,7 +68,7 @@ RU_TO_EN_DISHES = {
 }
 
 
-# Кнопки
+# Клавиатура
 def food_search_markup():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("Поиск рецептов(рецепты и продукты, но не более 150 запросов в день)"))
@@ -207,71 +207,48 @@ def show_favorites_page(chat_id, user_id, page=0):
     )
 
 
-# Обработчик избранных рецептов
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('fav_prev_', 'fav_next_')))
 def handle_favorites_pagination(call):
-    # Разбираем действие (prev/next) и номер страницы из callback data
     action, page = call.data.split('_')[1], int(call.data.split('_')[2])
-
-    # Показываем запрошенную страницу избранного
     show_favorites_page(call.message.chat.id, call.from_user.id, page)
-
-    # убираем часики в интерфейсе
     bot.answer_callback_query(call.id)
 
 
-# Обработчик выбора конкретного рецепта
 @bot.callback_query_handler(func=lambda call: call.data.startswith('recipe_'))
 def handle_recipe_selection(call):
-    # Извлекаем ID рецепта из callback data
     recipe_id = int(call.data.split('_')[1])
-
-    # Получаем данные рецепта из базы данных
     resp = database.get_recipe(recipe_id)
-
-    # Отображаем рецепт с его данными
     show_recipe(call.message, resp[2], resp[3], resp[4], resp[5], resp[6], resp[7], resp[1])
 
 
-# Обработчик добавления рецепта в избранное
 @bot.callback_query_handler(func=lambda call: call.data.startswith("add_favorite_"))
 def add_to_favorites(call):
-    # Извлекаем ID рецепта из callback data
     recipe_id = call.data.split("_")[-1]
 
-    # Проверяем, есть ли уже этот рецепт в избранном у пользователя
     recipe = database.get_favourite(call.from_user.id, recipe_id)
 
     if recipe is not None:
-        # Если рецепт уже в избранном - уведомляем пользователя
         bot.answer_callback_query(call.id, "Этот рецепт уже в избранном")
         return
 
-    # Добавляем рецепт в избранное
     database.add_favourite(call.from_user.id, recipe_id)
 
-    # Уведомляем пользователя об успешном добавлении
     bot.answer_callback_query(call.id, "Рецепт добавлен в избранное")
 
 
-# Обработчик переключения между частями рецепта (ингредиенты, инструкции, питательная ценность)
 @bot.callback_query_handler(func=lambda call: call.data.startswith("receipe_part_"))
 def get_next_part(call):
-    # Разбираем callback data на составляющие
     data = list(call.data.split("_"))
 
-    # Извлекаем ID рецепта и номер части
     recipe_id = data[-2]
     part = int(data[-1])
 
-    # Получаем данные рецепта из базы
     data = database.get_recipe(recipe_id)
     title_ru = data["title"]
     source_url = data["spoon_url"]
 
-    try:
-        # В зависимости от запрошенной части показываем соответствующую информацию
-        if part == 0:  # Ингредиенты
+    match part:
+        case 0:
             ingridients = data["ingridients"]
             text = f"""
             <b>{title_ru}</b>
@@ -281,8 +258,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 0, False)
-
-        elif part == 1:  # Инструкции приготовления
+        case 1:
             instructions = data["instructions"]
             text = f"""
             <b>{title_ru}</b>
@@ -292,8 +268,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 1, False)
-
-        elif part == 2:  # Пищевая ценность
+        case 2:
             nutritional = data["nutritional"]
             text = f"""
             <b>{title_ru}</b>
@@ -304,20 +279,13 @@ def get_next_part(call):
             """
             markup = favorite_markup(recipe_id, 2, False)
 
-        # Проверяем длину текста перед отправкой
-        if len(text) > 1024:
-            text = text[:1000] + "...\n\n🔗 <a href=\"{source_url}\">Полный рецепт</a>"
-
-        bot.edit_message_caption(
-            caption=text,
-            chat_id=call.message.chat.id,
-            message_id=call.message.id,
-            reply_markup=markup,
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        print(f"Error in get_next_part: {e}")
-        bot.answer_callback_query(call.id, "Произошла ошибка при обработке запроса")
+    bot.edit_message_caption(
+        caption=text,
+        chat_id=call.message.chat.id,
+        message_id=call.message.id,
+        reply_markup=markup,
+        parse_mode="HTML"
+    )
 
 
 # Поиск рецепта
@@ -370,8 +338,7 @@ def search_recipe(message):
 
 
 def show_recipe(message, image, title_ru, ingridients, instructions, calories, source_url, recipe_id):
-    try:
-        text = f"""
+    text = f"""
         <b>{title_ru}</b>
 
         {ingridients}
@@ -383,37 +350,30 @@ def show_recipe(message, image, title_ru, ingridients, instructions, calories, s
         🔗 <a href="{source_url}">Полный рецепт</a>
         """
 
-        is_small = len(text) < 1024
+    is_small = len(text) < 1024
 
-        if is_small:
-            markup = favorite_markup(recipe_id)
-        else:
-            text = f"""
-                <b>{title_ru}</b>
+    if is_small:
+        markup = favorite_markup(recipe_id)
+    else:
+        text = f"""
+            <b>{title_ru}</b>
 
-                {ingridients}
+            {ingridients}
 
-                🔗 <a href="{source_url}">Полный рецепт</a>
-                """
-            markup = favorite_markup(recipe_id, 0, False)
+            🔗 <a href="{source_url}">Полный рецепт</a>
+            """
+        markup = favorite_markup(recipe_id, 0, False)
 
-        if image is None:
-            bot.send_message(message.chat.id, text,
-                             parse_mode="HTML",
-                             reply_markup=markup)
-        else:
-            # Убедимся, что текст не слишком длинный
-            if len(text) > 1024:
-                text = text[:1000] + "...\n\n🔗 <a href=\"{source_url}\">Полный рецепт</a>"
-
-            bot.send_photo(message.chat.id,
-                           image,
-                           parse_mode="HTML",
-                           reply_markup=markup,
-                           caption=text)
-    except Exception as e:
-        print(f"Error in show_recipe: {e}")
-        bot.send_message(message.chat.id, "Произошла ошибка при отображении рецепта")
+    if image is None:
+        bot.send_message(message.chat.id, text,
+                         parse_mode="HTML",
+                         reply_markup=markup)
+    else:
+        bot.send_photo(message.chat.id,
+                       image,
+                       parse_mode="HTML",
+                       reply_markup=markup,
+                       caption=text)
 
 
 def get_recipe_info(recipe_id):
@@ -422,7 +382,6 @@ def get_recipe_info(recipe_id):
         response = requests.get(url, timeout=15)
         return response.json()
     except Exception as e:
-        print(f"Error getting recipe info: {e}")
         return None
 
 
@@ -488,9 +447,4 @@ def beautify_recipe(title_ru, ingredients_ru_text, instructions, calories, prote
     return ingridients, instructions, calories, title_ru, source_url
 
 
-if __name__ == "__main__":
-    print("Бот запущен")
-    try:
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"Ошибка :(: {e}")
+bot.infinity_polling()
