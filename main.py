@@ -493,4 +493,4 @@ if __name__ == "__main__":
     try:
         bot.infinity_polling()
     except Exception as e:
-        print(f"Ошибка в работе бота: {e}")
+        print(f"Ошибка :(: {e}")
