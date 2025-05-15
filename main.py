@@ -68,7 +68,7 @@ RU_TO_EN_DISHES = {
 }
 
 
-# Клавиатура
+# Кнопки
 def food_search_markup():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("Поиск рецептов(рецепты и продукты, но не более 150 запросов в день)"))
@@ -207,6 +207,11 @@ def show_favorites_page(chat_id, user_id, page=0):
     )
 
 
+
+
+
+
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('fav_prev_', 'fav_next_')))
 def handle_favorites_pagination(call):
     action, page = call.data.split('_')[1], int(call.data.split('_')[2])
@@ -247,8 +252,8 @@ def get_next_part(call):
     title_ru = data["title"]
     source_url = data["spoon_url"]
 
-    match part:
-        case 0:
+    try:
+        if part == 0:
             ingridients = data["ingridients"]
             text = f"""
             <b>{title_ru}</b>
@@ -258,7 +263,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 0, False)
-        case 1:
+        elif part == 1:
             instructions = data["instructions"]
             text = f"""
             <b>{title_ru}</b>
@@ -268,7 +273,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 1, False)
-        case 2:
+        elif part == 2:
             nutritional = data["nutritional"]
             text = f"""
             <b>{title_ru}</b>
@@ -279,13 +284,25 @@ def get_next_part(call):
             """
             markup = favorite_markup(recipe_id, 2, False)
 
-    bot.edit_message_caption(
-        caption=text,
-        chat_id=call.message.chat.id,
-        message_id=call.message.id,
-        reply_markup=markup,
-        parse_mode="HTML"
-    )
+        # Проверяем длину текста перед отправкой
+        if len(text) > 1024:
+            text = text[:1000] + "...\n\n🔗 <a href=\"{source_url}\">Полный рецепт</a>"
+
+        bot.edit_message_caption(
+            caption=text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.id,
+            reply_markup=markup,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Error in get_next_part: {e}")
+        bot.answer_callback_query(call.id, "Произошла ошибка при обработке запроса")
+
+
+
+
+
 
 
 # Поиск рецепта
@@ -338,7 +355,8 @@ def search_recipe(message):
 
 
 def show_recipe(message, image, title_ru, ingridients, instructions, calories, source_url, recipe_id):
-    text = f"""
+    try:
+        text = f"""
         <b>{title_ru}</b>
 
         {ingridients}
@@ -350,30 +368,37 @@ def show_recipe(message, image, title_ru, ingridients, instructions, calories, s
         🔗 <a href="{source_url}">Полный рецепт</a>
         """
 
-    is_small = len(text) < 1024
+        is_small = len(text) < 1024
 
-    if is_small:
-        markup = favorite_markup(recipe_id)
-    else:
-        text = f"""
-            <b>{title_ru}</b>
+        if is_small:
+            markup = favorite_markup(recipe_id)
+        else:
+            text = f"""
+                <b>{title_ru}</b>
 
-            {ingridients}
+                {ingridients}
 
-            🔗 <a href="{source_url}">Полный рецепт</a>
-            """
-        markup = favorite_markup(recipe_id, 0, False)
+                🔗 <a href="{source_url}">Полный рецепт</a>
+                """
+            markup = favorite_markup(recipe_id, 0, False)
 
-    if image is None:
-        bot.send_message(message.chat.id, text,
-                         parse_mode="HTML",
-                         reply_markup=markup)
-    else:
-        bot.send_photo(message.chat.id,
-                       image,
-                       parse_mode="HTML",
-                       reply_markup=markup,
-                       caption=text)
+        if image is None:
+            bot.send_message(message.chat.id, text,
+                             parse_mode="HTML",
+                             reply_markup=markup)
+        else:
+            # Убедимся, что текст не слишком длинный
+            if len(text) > 1024:
+                text = text[:1000] + "...\n\n🔗 <a href=\"{source_url}\">Полный рецепт</a>"
+
+            bot.send_photo(message.chat.id,
+                           image,
+                           parse_mode="HTML",
+                           reply_markup=markup,
+                           caption=text)
+    except Exception as e:
+        print(f"Error in show_recipe: {e}")
+        bot.send_message(message.chat.id, "Произошла ошибка при отображении рецепта")
 
 
 def get_recipe_info(recipe_id):
@@ -382,6 +407,7 @@ def get_recipe_info(recipe_id):
         response = requests.get(url, timeout=15)
         return response.json()
     except Exception as e:
+        print(f"Error getting recipe info: {e}")
         return None
 
 
@@ -447,4 +473,9 @@ def beautify_recipe(title_ru, ingredients_ru_text, instructions, calories, prote
     return ingridients, instructions, calories, title_ru, source_url
 
 
-bot.infinity_polling()
+if __name__ == "__main__":
+    print("Бот запущен")
+    try:
+        bot.infinity_polling()
+    except Exception as e:
+        print(f"Ошибка в работе бота: {e}")
