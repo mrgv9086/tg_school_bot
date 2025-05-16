@@ -141,7 +141,7 @@ def start(message):
 # Обработчик кнопки "Поиск рецептов"
 @bot.message_handler(func=lambda message: message.text.startswith("Поиск рецептов"))
 def ask_for_dish(message):
-    bot.send_message(message.chat.id, "Введите название блюда на русском (например, 'борщ'):")
+    bot.send_message(message.chat.id, "Введите название блюда (например, 'борщ', если на русском не ищет, то на английском):")
     bot.register_next_step_handler(message, search_recipe)
 
 
