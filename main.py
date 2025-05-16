@@ -12,7 +12,7 @@ SPOONACULAR_API_KEY = "97bdb917db30460c98e81c109023a009"
 bot = telebot.TeleBot(TOKEN)
 database = Database()
 
-# Словарь для перевода популярных блюд (^.^)
+# Словарь для перевода популярных блюд (☻)
 RU_TO_EN_DISHES = {
     "паста карбонара": "pasta carbonara",
     "борщ": "borscht",
@@ -79,19 +79,25 @@ def food_search_markup():
 
 def favorite_markup(recipe_id, recipe_part=0, is_small=True):
     markup = types.InlineKeyboardMarkup()
+
+    # Кнопка добавления в избранное
     markup.add(types.InlineKeyboardButton("❤️ Добавить в избранное", callback_data=f"add_favorite_{recipe_id}"))
+
+    # Если требуется ВСЁ
     if not is_small:
-        if recipe_part == 0:
+        # Логика отображения кнопок навигации между разделами рецепта
+        if recipe_part == 0:  # Первый раздел (олько кнопка "Вперед")
             markup.add(types.InlineKeyboardButton("Вперед",
                                                   callback_data=f"receipe_part_{recipe_id}_{recipe_part + 1}"))
-        elif 0 < recipe_part < 2:
+        elif 0 < recipe_part < 2:  # Средний раздел (обе кнопки)
             markup.add(types.InlineKeyboardButton("Вперед",
                                                   callback_data=f"receipe_part_{recipe_id}_{recipe_part + 1}"))
             markup.add(types.InlineKeyboardButton("Назад",
                                                   callback_data=f"receipe_part_{recipe_id}_{recipe_part - 1}"))
-        else:
+        else:  # Последний раздел (только кнопка "Назад")
             markup.add(types.InlineKeyboardButton("Назад",
                                                   callback_data=f"receipe_part_{recipe_id}_{recipe_part - 1}"))
+
     return markup
 
 
@@ -103,7 +109,7 @@ def translate_text(text, source="en", target="ru"):
 
         # Для перевода с русского на английский
         if source == "ru" and target == "en":
-            # Сначала проверяем словарь
+            # Сначало словарь
             lower_text = text.lower()
             if lower_text in RU_TO_EN_DISHES:
                 return RU_TO_EN_DISHES[lower_text]
@@ -139,7 +145,7 @@ def ask_for_dish(message):
     bot.register_next_step_handler(message, search_recipe)
 
 
-# Обработчик кнопки "История моих запросов"
+# Обработчик кнопки для запросов
 @bot.message_handler(func=lambda message: message.text.startswith("История моих запросов"))
 def show_history(message):
     history_records = database.get_user_history(message.chat.id)
@@ -161,7 +167,7 @@ def show_favorites(message):
     favorites = database.get_favourites_count(message.from_user.id)
 
     if favorites == 0:
-        bot.send_message(message.chat.id, "У вас пока нет избранных рецептов.")
+        bot.send_message(message.chat.id, "У вас пока нет избранных рецептов🥺")
         return
 
     current_page = 0
@@ -207,6 +213,7 @@ def show_favorites_page(chat_id, user_id, page=0):
     )
 
 
+# Обработчик разбиение большого объема данных на отдельные страницы для избранных рецептов
 @bot.callback_query_handler(func=lambda call: call.data.startswith(('fav_prev_', 'fav_next_')))
 def handle_favorites_pagination(call):
     action, page = call.data.split('_')[1], int(call.data.split('_')[2])
@@ -214,6 +221,7 @@ def handle_favorites_pagination(call):
     bot.answer_callback_query(call.id)
 
 
+# Обработчик выбора конкретного рецепта
 @bot.callback_query_handler(func=lambda call: call.data.startswith('recipe_'))
 def handle_recipe_selection(call):
     recipe_id = int(call.data.split('_')[1])
@@ -221,10 +229,12 @@ def handle_recipe_selection(call):
     show_recipe(call.message, resp[2], resp[3], resp[4], resp[5], resp[6], resp[7], resp[1])
 
 
+# Обработчик добавления рецепта в избранное
 @bot.callback_query_handler(func=lambda call: call.data.startswith("add_favorite_"))
 def add_to_favorites(call):
     recipe_id = call.data.split("_")[-1]
 
+    # Проверка рецепта в избранном
     recipe = database.get_favourite(call.from_user.id, recipe_id)
 
     if recipe is not None:
@@ -232,10 +242,10 @@ def add_to_favorites(call):
         return
 
     database.add_favourite(call.from_user.id, recipe_id)
-
     bot.answer_callback_query(call.id, "Рецепт добавлен в избранное")
 
 
+# Обработчик переключения между частями рецепта (ингредиенты инструкции питательность)
 @bot.callback_query_handler(func=lambda call: call.data.startswith("receipe_part_"))
 def get_next_part(call):
     data = list(call.data.split("_"))
@@ -247,8 +257,9 @@ def get_next_part(call):
     title_ru = data["title"]
     source_url = data["spoon_url"]
 
+    # В зависимости от выбранной части показываем разный контент
     match part:
-        case 0:
+        case 0:  # Ингредиенты
             ingridients = data["ingridients"]
             text = f"""
             <b>{title_ru}</b>
@@ -258,7 +269,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 0, False)
-        case 1:
+        case 1:  # Инструкции приготовления
             instructions = data["instructions"]
             text = f"""
             <b>{title_ru}</b>
@@ -268,7 +279,7 @@ def get_next_part(call):
             🔗 <a href="{source_url}">Полный рецепт</a>
             """
             markup = favorite_markup(recipe_id, 1, False)
-        case 2:
+        case 2:  # Пищевая ценность
             nutritional = data["nutritional"]
             text = f"""
             <b>{title_ru}</b>
@@ -279,6 +290,7 @@ def get_next_part(call):
             """
             markup = favorite_markup(recipe_id, 2, False)
 
+    # Обновляем сообщение с новой информацией
     bot.edit_message_caption(
         caption=text,
         chat_id=call.message.chat.id,
